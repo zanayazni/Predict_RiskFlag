@@ -130,14 +130,6 @@ elif menu == "Login":
                 st.session_state["user_id"] = response["user_id"]
             else:
                 st.error("Login gagal. Periksa username dan password Anda.")
-                if not response.text.strip():
-                    return {"error": "Respons kosong dari server"}
-                try:
-                    return response.json()
-                except requests.exceptions.JSONDecodeError:
-                    return {"error": "Respons JSON tidak valid", "content": response.text}
-                except requests.exceptions.RequestException as e:
-                    return {"error": str(e)}
         else:
             st.error("Username dan password harus diisi")
 
