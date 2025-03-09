@@ -10,3 +10,4 @@ xgboost
 requests
 python-dotenv
 pyyaml
+openai
