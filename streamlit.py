@@ -16,14 +16,29 @@ BACKEND_URL = "https://e1ca-36-69-142-24.ngrok-free.app"
 
 # Fungsi untuk mendaftarkan pengguna baru
 def register_user(username, password):
-    response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
-    return response.json()
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/register",
+            json={"username": username, "password": password},
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()  # Raise exception untuk status code 4xx/5xx
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
+        return {"message": "Failed to register user"}
 
-# Fungsi untuk login
 def login_user(username, password):
-    auth = (username, password)
-    response = requests.post(f"{BACKEND_URL}/login", auth=auth)
-    return response.json()
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/login",
+            auth=(username, password)
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
+        return {"message": "Failed to login"}
 
 # Fungsi untuk melakukan prediksi risiko kredit
 def predict_risk(data, username, password):
