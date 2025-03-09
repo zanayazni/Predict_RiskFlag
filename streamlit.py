@@ -12,6 +12,8 @@ import pandas as pd
 # api_key = os.getenv("OPENAI_API_KEY")
 # client = OpenAI(api_key=api_key)
 # URL backend FastAPI (localhost)
+import requests
+
 def get_ngrok_url():
     try:
         response = requests.get("http://127.0.0.1:4040/api/tunnels")
@@ -24,32 +26,16 @@ def get_ngrok_url():
 
 # Perbarui BACKEND_URL dengan URL terbaru dari ngrok
 BACKEND_URL = get_ngrok_url()
-
 # Fungsi untuk mendaftarkan pengguna baru
 def register_user(username, password):
-    try:
-        response = requests.post(
-            f"{BACKEND_URL}/register",
-            json={"username": username, "password": password},
-            headers={"Content-Type": "application/json"}
-        )
-        response.raise_for_status()  # Raise exception untuk status code 4xx/5xx
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
-        return {"message": "Failed to register user"}
+    response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
+    return response.json()
 
+# Fungsi untuk login
 def login_user(username, password):
-    try:
-        response = requests.post(
-            f"{BACKEND_URL}/login",
-            auth=(username, password)
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
-        return {"message": "Failed to login"}
+    auth = (username, password)
+    response = requests.post(f"{BACKEND_URL}/login", auth=auth)
+    return response.json()
 
 # Fungsi untuk melakukan prediksi risiko kredit
 def predict_risk(data, username, password):
@@ -118,7 +104,6 @@ elif menu == "Login":
     if st.button("Login"):
         if username and password:
             response = login_user(username, password)
-            print(response)
             if "message" in response and response["message"] == "Login successful":
                 st.success("Login berhasil!")
                 st.session_state["logged_in"] = True
