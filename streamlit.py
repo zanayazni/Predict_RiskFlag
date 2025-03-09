@@ -37,19 +37,23 @@ def register_user(username, password):
         return {"error": "Invalid response from server"}
 
 def login_user(username, password):
+    auth = (username, password)
     try:
-        auth = (username, password)
         response = requests.post(f"{BACKEND_URL}/login", auth=auth)
-        response.raise_for_status()
-        return response.json()
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Content: {response.text}")
+        
+        # Periksa apakah respons kosong
+        if not response.text.strip():
+            return {"error": "Respons kosong dari server"}
+        
+        # Coba parsing JSON
+        try:
+            return response.json()
+        except requests.exceptions.JSONDecodeError:
+            return {"error": "Respons JSON tidak valid", "content": response.text}
     except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
         return {"error": str(e)}
-    except requests.exceptions.JSONDecodeError:
-        print(f"Failed to decode JSON. Response: {response.text}")
-        return {"error": "Invalid response from server"}
-
-# ... (rest of your code)
 
 # Fungsi untuk melakukan prediksi risiko kredit
 def predict_risk(data, username, password):
@@ -126,6 +130,14 @@ elif menu == "Login":
                 st.session_state["user_id"] = response["user_id"]
             else:
                 st.error("Login gagal. Periksa username dan password Anda.")
+                if not response.text.strip():
+                    return {"error": "Respons kosong dari server"}
+                try:
+                    return response.json()
+                except requests.exceptions.JSONDecodeError:
+                    return {"error": "Respons JSON tidak valid", "content": response.text}
+                except requests.exceptions.RequestException as e:
+                    return {"error": str(e)}
         else:
             st.error("Username dan password harus diisi")
 
