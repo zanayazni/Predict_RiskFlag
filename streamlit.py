@@ -12,7 +12,7 @@ import pandas as pd
 # api_key = os.getenv("OPENAI_API_KEY")
 # client = OpenAI(api_key=api_key)
 # URL backend FastAPI (localhost)
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = "https://e1ca-36-69-142-24.ngrok-free.app"
 
 # Fungsi untuk mendaftarkan pengguna baru
 def register_user(username, password):
