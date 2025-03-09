@@ -1,0 +1,86 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+import numpy as np
+import pickle
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+import pandas as pd
+
+app = FastAPI()
+
+# Load dataset dan latih model jika belum tersedia
+try:
+    model = pickle.load(open("model.pkl", "rb"))
+    scaler = pickle.load(open("scaler.pkl", "rb"))
+    label_encoders = pickle.load(open("label_encoders.pkl", "rb"))
+except FileNotFoundError:
+    # Load data
+    df = pd.read_csv("Training Data.csv")
+    df.drop(columns=['Id'], inplace=True)
+    
+    # Konversi variabel kategorikal menjadi numerik
+    categorical_cols = ['Married/Single', 'House_Ownership', 'Car_Ownership', 'Profession', 'CITY', 'STATE']
+    label_encoders = {}
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col])
+        label_encoders[col] = le
+    
+    # Memisahkan fitur dan target
+    X = df.drop(columns=['Risk_Flag'])
+    y = df['Risk_Flag']
+    
+    # Normalisasi fitur numerik
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Latih model
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_scaled, y)
+    
+    # Simpan model dan preprocessing tools
+    pickle.dump(model, open("model.pkl", "wb"))
+    pickle.dump(scaler, open("scaler.pkl", "wb"))
+    pickle.dump(label_encoders, open("label_encoders.pkl", "wb"))
+
+class InputData(BaseModel):
+    Income: int
+    Age: int
+    Experience: int
+    Married_Single: str
+    House_Ownership: str
+    Car_Ownership: str
+    Profession: str
+    CITY: str
+    STATE: str
+    CURRENT_JOB_YRS: int
+    CURRENT_HOUSE_YRS: int
+
+@app.post("/predict")
+def predict(data: InputData):
+    try:
+        # Preprocessing input data
+        input_data = [
+            data.Income, data.Age, data.Experience,
+            label_encoders["Married/Single"].transform([data.Married_Single])[0],
+            label_encoders["House_Ownership"].transform([data.House_Ownership])[0],
+            label_encoders["Car_Ownership"].transform([data.Car_Ownership])[0],
+            label_encoders["Profession"].transform([data.Profession])[0],
+            label_encoders["CITY"].transform([data.CITY])[0],
+            label_encoders["STATE"].transform([data.STATE])[0],
+            data.CURRENT_JOB_YRS, data.CURRENT_HOUSE_YRS
+        ]
+        
+        # Scaling
+        input_scaled = scaler.transform([input_data])
+        
+        # Predict
+        prediction = model.predict(input_scaled)[0]
+        
+        return {"Risk_Flag": int(prediction)}
+    except Exception as e:
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
