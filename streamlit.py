@@ -12,7 +12,18 @@ import pandas as pd
 # api_key = os.getenv("OPENAI_API_KEY")
 # client = OpenAI(api_key=api_key)
 # URL backend FastAPI (localhost)
-BACKEND_URL = "https://e1ca-36-69-142-24.ngrok-free.app"
+def get_ngrok_url():
+    try:
+        response = requests.get("http://127.0.0.1:4040/api/tunnels")
+        data = response.json()
+        public_url = data["tunnels"][0]["public_url"]  # Ambil URL pertama
+        return public_url
+    except Exception as e:
+        print(f"Error mengambil URL ngrok: {e}")
+        return None
+
+# Perbarui BACKEND_URL dengan URL terbaru dari ngrok
+BACKEND_URL = get_ngrok_url()
 
 # Fungsi untuk mendaftarkan pengguna baru
 def register_user(username, password):
