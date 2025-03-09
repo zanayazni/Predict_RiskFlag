@@ -107,6 +107,7 @@ elif menu == "Login":
     if st.button("Login"):
         if username and password:
             response = login_user(username, password)
+            print(response)
             if "message" in response and response["message"] == "Login successful":
                 st.success("Login berhasil!")
                 st.session_state["logged_in"] = True
