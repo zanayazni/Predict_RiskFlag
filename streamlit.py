@@ -4,38 +4,52 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 import pandas as pd
-# # Load API key dari file .env
-# load_dotenv()
 
-# # Set API key
+# Load API key from .env file
+# load_dotenv()
 # api_key = os.getenv("OPENAI_API_KEY")
 # client = OpenAI(api_key=api_key)
-# URL backend FastAPI (localhost)
-
 
 def get_ngrok_url():
     try:
         response = requests.get("http://127.0.0.1:4040/api/tunnels")
+        response.raise_for_status()
         data = response.json()
-        public_url = data["tunnels"][0]["public_url"]  # Ambil URL pertama
+        public_url = data["tunnels"][0]["public_url"]
         return public_url
     except Exception as e:
-        print(f"Error mengambil URL ngrok: {e}")
+        print(f"Error fetching ngrok URL: {e}")
         return None
-    
+
 BACKEND_URL = get_ngrok_url()
-print(f"Ngrok URL terbaru: {BACKEND_URL}")
+print(f"Ngrok URL: {BACKEND_URL}")
 
-# Fungsi untuk mendaftarkan pengguna baru
 def register_user(username, password):
-    response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
-    return response.json()
+    try:
+        response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return {"error": str(e)}
+    except requests.exceptions.JSONDecodeError:
+        print(f"Failed to decode JSON. Response: {response.text}")
+        return {"error": "Invalid response from server"}
 
-# Fungsi untuk login
 def login_user(username, password):
-    auth = (username, password)
-    response = requests.post(f"{BACKEND_URL}/login", auth=auth)
-    return response.json()
+    try:
+        auth = (username, password)
+        response = requests.post(f"{BACKEND_URL}/login", auth=auth)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return {"error": str(e)}
+    except requests.exceptions.JSONDecodeError:
+        print(f"Failed to decode JSON. Response: {response.text}")
+        return {"error": "Invalid response from server"}
+
+# ... (rest of your code)
 
 # Fungsi untuk melakukan prediksi risiko kredit
 def predict_risk(data, username, password):
