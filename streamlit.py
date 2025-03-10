@@ -21,7 +21,7 @@ def get_ngrok_url():
         print(f"Error fetching ngrok URL: {e}")
         return None
 
-BACKEND_URL = "https://9e6f-36-69-198-44.ngrok-free.app"
+BACKEND_URL = "https://f020-36-69-198-44.ngrok-free.app"
 
 def register_user(username, password):
     try:
