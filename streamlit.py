@@ -22,7 +22,6 @@ def get_ngrok_url():
         return None
 
 BACKEND_URL = get_ngrok_url()
-print(f"Ngrok URL: {BACKEND_URL}")
 
 def register_user(username, password):
     try:
