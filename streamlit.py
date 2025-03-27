@@ -1,58 +1,39 @@
 import streamlit as st
 import requests
-from openai import OpenAI
-import os
-from dotenv import load_dotenv
+import subprocess
+import time
+from pyngrok import ngrok
 import pandas as pd
 
-# Load API key from .env file
-# load_dotenv()
-# api_key = os.getenv("OPENAI_API_KEY")
-# client = OpenAI(api_key=api_key)
+# Fungsi untuk menjalankan backend otomatis
+# def start_backend():
+#     process = subprocess.Popen(["python", "main.py"])
+#     time.sleep(3)  # Tunggu beberapa detik agar backend siap
+#     return process
 
-def get_ngrok_url():
-    try:
-        response = requests.get("http://127.0.0.1:4040/api/tunnels")
-        response.raise_for_status()
-        data = response.json()
-        public_url = data["tunnels"][0]["public_url"]
-        return public_url
-    except Exception as e:
-        print(f"Error fetching ngrok URL: {e}")
-        return None
+# # Fungsi untuk menjalankan ngrok
+# def start_ngrok():
+#     ngrok.set_auth_token("2tsvr0e52TVnMuzMSKuFm5OUJ8C_6fzhGmrPvG7fVofSXLhiW")
+#     tunnel = ngrok.connect(8000)  # Sesuaikan dengan port backend
+#     return tunnel.public_url
 
-BACKEND_URL = "https://d347-36-69-140-243.ngrok-free.app"
+# # Mulai backend
+# backend_process = start_backend()
 
+# Mulai ngrok
+BACKEND_URL = "https://58d9-2001-448a-2061-109b-703c-9331-3e8-ef9c.ngrok-free.app"
+# print(f"Backend URL: {BACKEND_URL}")
+
+# Fungsi untuk mendaftarkan pengguna baru
 def register_user(username, password):
-    try:
-        response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
-        return {"error": str(e)}
-    except requests.exceptions.JSONDecodeError:
-        print(f"Failed to decode JSON. Response: {response.text}")
-        return {"error": "Invalid response from server"}
+    response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
+    return response.json()
 
+# Fungsi untuk login
 def login_user(username, password):
     auth = (username, password)
-    try:
-        response = requests.post(f"{BACKEND_URL}/login", auth=auth)
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Content: {response.text}")
-        
-        # Periksa apakah respons kosong
-        if not response.text.strip():
-            return {"error": "Respons kosong dari server"}
-        
-        # Coba parsing JSON
-        try:
-            return response.json()
-        except requests.exceptions.JSONDecodeError:
-            return {"error": "Respons JSON tidak valid", "content": response.text}
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    response = requests.post(f"{BACKEND_URL}/login", auth=auth)
+    return response.json()
 
 # Fungsi untuk melakukan prediksi risiko kredit
 def predict_risk(data, username, password):
@@ -66,19 +47,15 @@ def get_logs(username, password):
     response = requests.get(f"{BACKEND_URL}/log", auth=auth)
     return response.json()
 
-# Fungsi untuk berinteraksi dengan ChatGPT
-# def chat_with_gpt(prompt):
-#     try:
-#         response = client.chat.completions.create(
-#             model="gpt-3.5-turbo",
-#             messages=[
-#                 {"role": "system", "content": "Anda adalah asisten yang membantu memberikan rekomendasi terkait risiko kredit dan keuangan."},
-#                 {"role": "user", "content": prompt}
-#             ]
-#         )
-#         return response.choices[0].message.content
-#     except Exception as e:
-#         return f"Error: {str(e)}"
+# Fungsi untuk mendapatkan rekomendasi keuangan
+def get_financial_recommendation(profile_text, username, password):
+    auth = (username, password)
+    response = requests.post(
+        f"{BACKEND_URL}/financial-recommendation",
+        json={"profile_text": profile_text},
+        auth=auth
+    )
+    return response.json()
 
 # Inisialisasi session state
 if "logged_in" not in st.session_state:
@@ -91,14 +68,10 @@ if "user_id" not in st.session_state:
     st.session_state["user_id"] = None
 
 # Tampilan Streamlit
-st.title("Aplikasi Prediksi Risiko Kredit dan Chat dengan AI")
+st.title("Aplikasi Prediksi Risiko Kredit dan Rekomendasi Keuangan")
 
 # Sidebar untuk menu
-menu = st.sidebar.selectbox("Menu", ["Register", "Login", "Predict", "Logs", "Chat with AI"])
-
-def register_user(username, password):
-    response = requests.post(f"{BACKEND_URL}/register", json={"username": username, "password": password})
-    return response.json()
+menu = st.sidebar.selectbox("Menu", ["Register", "Login", "Predict", "Logs", "Financial Recommendation"])
 
 if menu == "Register":
     st.header("Daftar Pengguna Baru")
@@ -169,7 +142,6 @@ elif menu == "Predict":
             else:
                 st.error(response.get("detail", "Terjadi kesalahan saat melakukan prediksi"))
 
-
 elif menu == "Logs":
     st.header("Log Prediksi")
     if not st.session_state.get("logged_in"):
@@ -184,21 +156,40 @@ elif menu == "Logs":
                 # Tampilkan tabel dengan st.dataframe (interaktif)
                 st.subheader("Tabel Log Prediksi (Interaktif)")
                 st.dataframe(df)
-
-                
             else:
                 st.error(logs.get("detail", "Terjadi kesalahan saat mengambil log"))
 
-# elif menu == "Chat with AI":
-#     st.header("Chat dengan AI")
-    
-#     # Input chat dari pengguna
-#     user_input = st.text_input("Anda: ", placeholder="Tulis pesan Anda di sini...")
-    
-#     if st.button("Kirim"):
-#         if user_input:
-#             # Kirim pesan ke ChatGPT
-#             response = chat_with_gpt(user_input)
-#             st.text_area("AI:", value=response, height=200, disabled=True)
-#         else:
-#             st.warning("Silakan masukkan pesan terlebih dahulu.")
+elif menu == "Financial Recommendation":
+    st.header("Rekomendasi Produk Keuangan")
+    if not st.session_state.get("logged_in"):
+        st.warning("Silakan login terlebih dahulu.")
+    else:
+        profile_text = st.text_area(
+            "Masukkan profil keuangan Anda",
+            placeholder="Contoh: Saya 25 tahun, pendapatan 15 juta per bulan, riwayat kredit baik"
+        )
+        
+        if st.button("Dapatkan Rekomendasi"):
+            if profile_text:
+                with st.spinner("Membuat rekomendasi..."):
+                    response = get_financial_recommendation(
+                        profile_text,
+                        st.session_state["username"],
+                        st.session_state["password"]
+                    )
+                    
+                    if "recommendation" in response:
+                        # Bersihkan output lagi untuk memastikan
+                        recommendation = response["recommendation"]
+                        unwanted = "Bagi pengguna dengan usia"
+                        
+                        if recommendation.startswith(unwanted):
+                            recommendation = recommendation[len(unwanted):]
+                            recommendation = recommendation.split(".", 1)[-1].strip()
+                        
+                        st.subheader("Rekomendasi untuk Anda:")
+                        st.write(recommendation)
+                    else:
+                        st.error("Gagal mendapatkan rekomendasi")
+            else:
+                st.warning("Harap masukkan profil keuangan Anda")
