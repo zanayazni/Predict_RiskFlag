@@ -4,12 +4,16 @@ import pymysql
 import uvicorn
 import numpy as np
 import bcrypt
+import mlflow
+import ollama
+import re
 from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import JSONResponse
 from pyngrok import ngrok
 import pandas as pd
+from fastapi.middleware.cors import CORSMiddleware
 
 # Create MySQL connection
 conn = pymysql.connect(
@@ -21,7 +25,7 @@ conn = pymysql.connect(
 cursor = conn.cursor()
 
 # Setup ngrok, load token from .env
-NGROK_TOKEN = "2qbm2tb2N5V976kazTBFrXp6nTH_5ogBZLoLfAB7Cronw98QM"
+NGROK_TOKEN = "2tsvr0e52TVnMuzMSKuFm5OUJ8C_6fzhGmrPvG7fVofSXLhiW"
 ngrok.set_auth_token(NGROK_TOKEN)
 
 # Create table for logging request data
@@ -55,6 +59,13 @@ conn.commit()
 
 # Create a FastAPI instance
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://*.streamlit.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 security = HTTPBasic()
 
 # Load model and preprocessing tools
@@ -74,6 +85,85 @@ class InputData(BaseModel):
     STATE: str
     CURRENT_JOB_YRS: int
     CURRENT_HOUSE_YRS: int
+
+class FinancialProfile(BaseModel):
+    profile_text: str
+
+def extract_user_profile(user_input):
+    """
+    Mengekstrak informasi dari input pengguna menjadi dictionary user_profile.
+
+    Args:
+        user_input (str): Input user dalam bentuk kalimat.
+
+    Returns:
+        dict: Profil user yang telah diekstrak.
+    """
+    usia = re.search(r'(\d{2})\s*tahun', user_input)
+    pendapatan = re.search(r'(\d+)\s*(?:juta|jt|ribu|rb)?', user_input, re.IGNORECASE)
+    riwayat_kredit = re.search(r'\b(baik|buruk|sedang)\b', user_input, re.IGNORECASE)
+
+    user_profile = {
+        "usia": int(usia.group(1)) if usia else None,
+        "pendapatan": int(pendapatan.group(1)) * 1_000_000 if pendapatan else None,  # Konversi ke juta
+        "riwayat_kredit": riwayat_kredit.group(1).capitalize() if riwayat_kredit else "Tidak diketahui",
+    }
+
+    return user_profile
+
+def generate_recommendation(user_profile):
+    """
+    Menghasilkan rekomendasi produk keuangan berdasarkan profil pengguna.
+
+    Args:
+        user_profile (dict): Dictionary berisi informasi user.
+
+    Returns:
+        str: Rekomendasi produk keuangan.
+    """
+    prompt = f"""
+     Berikan rekomendasi produk keuangan spesifik untuk pengguna dengan detail berikut:
+    - Usia: {user_profile['usia']} tahun
+    - Pendapatan: {user_profile['pendapatan']} per tahun
+    - Riwayat kredit: {user_profile['riwayat_kredit']}
+    
+    Rekomendasi harus:
+    1. Langsung ke poin utama tanpa kalimat pengantar
+    2. Spesifik dengan nama produk dan lembaga keuangan
+    3. Sertakan alasan singkat untuk setiap rekomendasi
+    4. Format dalam poin-poin
+    """
+
+    try:
+        response = ollama.chat(model="mistral", messages=[{"role": "user", "content": prompt}])
+        recommendation = response["message"]["content"]
+        unwanted_phrases = [
+            "Bagi pengguna dengan usia",
+            "berbagai produk keuangan dapat menjadi pilihan yang tepat",
+            "produk keuangan yang cocok"
+        ]
+        
+        for phrase in unwanted_phrases:
+            recommendation = recommendation.replace(phrase, "")
+            
+        return recommendation.strip()
+    except Exception as e:
+        recommendation = f"Error generating recommendation: {e}"
+
+    return recommendation
+
+def log_recommendation(user_profile):
+    """
+    Mencatat profil user dan rekomendasi ke dalam MLflow.
+
+    Args:
+        user_profile (dict): Dictionary profil user.
+    """
+    with mlflow.start_run():
+        mlflow.log_params(user_profile)
+        recommendation = generate_recommendation(user_profile)
+        mlflow.log_text(recommendation, "recommendation.txt")
+        return recommendation
 
 
 # Hashing password
@@ -254,6 +344,19 @@ async def log(username: str = Depends(get_current_user)):
         })
     
     return JSONResponse(content=result)
+
+@app.post("/financial-recommendation")
+async def get_financial_recommendation(profile: FinancialProfile, username: str = Depends(get_current_user)):
+    try:
+        user_profile = extract_user_profile(profile.profile_text)
+        recommendation = log_recommendation(user_profile)
+        
+        return JSONResponse(content={
+            "profile": user_profile,
+            "recommendation": recommendation
+        })
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error processing request: {str(e)}")
 
 # Run the app
 if __name__ == "__main__":
