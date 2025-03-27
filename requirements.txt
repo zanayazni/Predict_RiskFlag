@@ -13,3 +13,4 @@ pyyaml
 openai
 fastapi
 ngrok
+pyngrok
