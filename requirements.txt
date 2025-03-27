@@ -12,3 +12,4 @@ python-dotenv
 pyyaml
 openai
 fastapi
+ngrok
