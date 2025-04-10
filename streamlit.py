@@ -21,7 +21,7 @@ import pandas as pd
 # backend_process = start_backend()
 
 # Mulai ngrok
-BACKEND_URL = "https://58d9-2001-448a-2061-109b-703c-9331-3e8-ef9c.ngrok-free.app"
+BACKEND_URL = "https://7a66-180-245-185-32.ngrok-free.app"
 # print(f"Backend URL: {BACKEND_URL}")
 
 # Fungsi untuk mendaftarkan pengguna baru
