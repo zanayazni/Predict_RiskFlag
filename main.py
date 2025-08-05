@@ -25,7 +25,7 @@ conn = pymysql.connect(
 cursor = conn.cursor()
 
 # Setup ngrok, load token from .env
-NGROK_TOKEN = "2tsvr0e52TVnMuzMSKuFm5OUJ8C_6fzhGmrPvG7fVofSXLhiW"
+NGROK_TOKEN = " "
 ngrok.set_auth_token(NGROK_TOKEN)
 
 # Create table for logging request data
@@ -363,3 +363,4 @@ if __name__ == "__main__":
     public_url = ngrok.connect(addr="8000", proto="http", bind_tls=True)
     print(f"Public URL: {public_url}")
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
